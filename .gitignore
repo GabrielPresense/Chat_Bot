@@ -1,0 +1,21 @@
+# Arquivos de dependências do Node.js
+# Esta pasta é recriada com o comando 'npm install' e não deve ser versionada.
+/node_modules
+
+# Arquivos de autenticação e cache da biblioteca whatsapp-web.js
+# IMPORTANTE: Contêm dados sensíveis da sua sessão do WhatsApp. NUNCA os compartilhe.
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Arquivos de log de erros e depuração
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Arquivos de ambiente (caso você use um arquivo .env para senhas no futuro)
+.env
+
+# Arquivos de sistema operacional (macOS e Windows)
+.DS_Store
+Thumbs.db
