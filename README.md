@@ -33,7 +33,7 @@ Para executar este projeto, você precisará ter o [Node.js](https://nodejs.org/
 
 1.  **No terminal, dentro da pasta do projeto, execute o bot com o seguinte comando:**
     ```bash
-    node nome_do_seu_arquivo.js
+    node chatbot.js
     ```
     *(Substitua `nome_do_seu_arquivo.js` pelo nome que você deu ao seu arquivo, por exemplo, `bot.js`)*.
 
