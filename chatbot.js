@@ -1,11 +1,30 @@
 // leitor de qr code
 const qrcode = require('qrcode-terminal');
-const { Client } = require('whatsapp-web.js');
-const client = new Client();
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const fs = require('fs');
+
+// Configuração do cliente com autenticação local
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }
+});
 
 // serviço de leitura do qr code
 client.on('qr', qr => {
     qrcode.generate(qr, { small: true });
+    console.log('QR Code gerado! Escaneie-o com seu WhatsApp.');
+});
+
+// evento de autenticação
+client.on('authenticated', () => {
+    console.log('Autenticado com sucesso!');
+});
+
+// evento de autenticação falha
+client.on('auth_failure', (msg) => {
+    console.error('Falha na autenticação:', msg);
 });
 
 // apos isso ele diz que foi tudo certo
@@ -13,49 +32,59 @@ client.on('ready', () => {
     console.log('Tudo certo! WhatsApp conectado.');
 });
 
+// evento de desconexão
+client.on('disconnected', (reason) => {
+    console.log('Cliente desconectado:', reason);
+});
+
 // E inicializa tudo
-client.initialize();
+client.initialize().catch(err => {
+    console.error('Erro ao inicializar:', err);
+});
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 // --- Centralizando as respostas ---
-// Armazenamos todas as respostas em um objeto. Fica mais fácil de editar
-const respostas = {
-    '1': [
-        'Nosso serviço oferece consultas médicas 24 horas por dia, 7 dias por semana, diretamente pelo WhatsApp.\n\nNão há carência, o que significa que você pode começar a usar nossos serviços imediatamente após a adesão.\n\nOferecemos atendimento médico ilimitado, receitas\n\nAlém disso, temos uma ampla gama de benefícios, incluindo acesso a cursos gratuitos',
-        'COMO FUNCIONA?\nÉ muito simples.\n\n1º Passo\nFaça seu cadastro e escolha o plano que desejar.\n\n2º Passo\nApós efetuar o pagamento do plano escolhido você já terá acesso a nossa área exclusiva para começar seu atendimento na mesma hora.\n\n3º Passo\nSempre que precisar',
-        'Link para cadastro: https://site.com'
-    ],
-    '2': [
-        '*Plano Individual:* R$22,50 por mês.\n\n*Plano Família:* R$39,90 por mês, inclui você mais 3 dependentes.\n\n*Plano TOP Individual:* R$42,50 por mês, com benefícios adicionais como\n\n*Plano TOP Família:* R$79,90 por mês, inclui você mais 3 dependentes',
-        'Link para cadastro: https://site.com'
-    ],
-    '3': [
-        'Sorteio de em prêmios todo ano.\n\nAtendimento médico ilimitado 24h por dia.\n\nReceitas de medicamentos',
-        'Link para cadastro: https://site.com'
-    ],
-    '4': [
-        'Você pode aderir aos nossos planos diretamente pelo nosso site ou pelo WhatsApp.\n\nApós a adesão, você terá acesso imediato',
-        'Link para cadastro: https://site.com'
-    ],
-    '5': [
-        'Se você tiver outras dúvidas ou precisar de mais informações, por favor, fale aqui nesse whatsapp ou visite nosso site: https://site.com'
-    ]
+// Função para ler o arquivo de texto e retornar um array com as linhas
+const lerArquivoTexto = (caminhoArquivo) => {
+    try {
+        const conteudo = fs.readFileSync(caminhoArquivo, 'utf-8');
+        return conteudo.split('\n').filter(linha => linha.trim()); // Remove linhas vazias
+    } catch (error) {
+        console.error('Erro ao ler o arquivo:', error);
+        return null;
+    }
 };
 
-// --- Função para evitar repetição de código ---
-// Esta função envia as mensagens com delay e simulação de digitação.
+// --- Função para enviar mensagens com delay ---
 const enviarMensagensComDelay = async (chat, mensagens) => {
     for (const msg of mensagens) {
         await delay(2000);
         await chat.sendStateTyping();
         await delay(3000);
-        await client.sendMessage(chat.id._serialized, msg);
+        await client.sendMessage(chat.id._serialized, msg.trim());
     }
 };
 
+const respostas = {
+    '1': [
+        ''
+    ],
+    '2': [
+        ''
+    ],
+    '3': [
+        ''
+    ],
+    '4': [
+        ''
+    ],
+    '5': [
+        ''
+    ]
+};
+
 client.on('message', async msg => {
-    // Ignora mensagens que não são de usuários (ex: de grupos)
     if (!msg.from.endsWith('@c.us')) {
         return;
     }
@@ -63,21 +92,35 @@ client.on('message', async msg => {
     const texto = msg.body.trim().toLowerCase();
     const chat = await msg.getChat();
 
-    // --- Estrutura Lógica mais Limpa ---
     try {
-        // Bloco 1: Palavras-chave para iniciar a conversa
+        // Comando para enviar conteúdo do arquivo texto
+        if (texto.startsWith('!enviar')) {
+            const caminhoArquivo = texto.split(' ')[1]; // Pega o caminho do arquivo após o comando
+            if (!caminhoArquivo) {
+                await client.sendMessage(msg.from, 'Por favor, especifique o caminho do arquivo. Exemplo: !enviar C:/caminho/arquivo.txt');
+                return;
+            }
+
+            const linhas = lerArquivoTexto(caminhoArquivo);
+            if (linhas) {
+                await enviarMensagensComDelay(chat, linhas);
+            } else {
+                await client.sendMessage(msg.from, 'Não foi possível ler o arquivo. Verifique se o caminho está correto.');
+            }
+            return;
+        }
+
+        // Resto do código original para o menu
         if (['menu', 'oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite'].includes(texto)) {
             const contact = await msg.getContact();
-            const name = contact.pushname || 'Tudo bem?'; // Fallback caso não tenha nome
+            const name = contact.pushname || 'Tudo bem?';
             
             const mensagemInicial = `Olá, ${name.split(" ")[0]}! Sou o assistente virtual da empresa tal. Como posso ajudá-lo hoje? Por favor, digite o número de uma das opções abaixo:\n\n1 - Como funciona\n2 - Valores dos planos\n3 - Benefícios\n4 - Como aderir\n5 - Outras perguntas`;
             
             await enviarMensagensComDelay(chat, [mensagemInicial]);
-            return; // Encerra aqui para não processar as outras opções
+            return;
         }
 
-        // Bloco 2: Respostas baseadas na escolha do menu
-        // Verifica se a mensagem (texto) é uma das chaves do nosso objeto 'respostas'
         if (respostas[texto]) {
             await enviarMensagensComDelay(chat, respostas[texto]);
             return;
@@ -85,7 +128,5 @@ client.on('message', async msg => {
 
     } catch (error) {
         console.error("Ocorreu um erro:", error);
-        // Opcional: Enviar uma mensagem de erro para o usuário
-        // await client.sendMessage(msg.from, "Ops! Ocorreu um erro. Tente novamente mais tarde.");
     }
 });
