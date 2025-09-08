@@ -14,7 +14,7 @@ client.on('ready', () => {
 });
 
 // E inicializa tudo
-client.initialize( );
+client.initialize();
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
